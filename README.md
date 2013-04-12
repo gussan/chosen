@@ -1,11 +1,15 @@
-# Chosen
+# Chosen + Templating
 
-Chosen is a library for making long, unwieldy select boxes more user friendly.
+Templates add the ability to fully customize the contents of select boxes. Add Picturs for example. Go crazy.
+
+Examples: http://thomasf1.github.com/chosen-with-templates/
+
+Extending Chosen, a library for making long, unwieldy select boxes more user friendly.
 
 - jQuery support: 1.4+
 - Prototype support: 1.7+
 
-For documentation, usage, and examples, see:  
+For Chosen documentation, usage, and examples, see:  
 http://harvesthq.github.com/chosen
 
 ### Contributing to Chosen
@@ -39,7 +43,7 @@ If you're interested, you can find the recipes in Cakefile.
 
 ### Chosen Credits
 
-- Built by [Harvest](http://www.getharvest.com/). Want to work on projects like this? [We’re hiring](http://www.getharvest.com/careers)!
+- Built by [Harvest](http://www.getharvest.com/).
 - Concept and development by [Patrick Filler](http://www.patrickfiller.com/)
 - Design and CSS by [Matthew Lettini](http://matthewlettini.com/)
 
