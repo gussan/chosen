@@ -360,15 +360,14 @@ class Chosen extends AbstractChosen
       this.search_field_scale()
 
   single_set_selected_text: (text=@default_text) ->
-    html = @useTemplate item
-    @selected_item.find("span").first().html html
     if text is @default_text
       @selected_item.addClass("chosen-default")
     else
       this.single_deselect_control_build()
       @selected_item.removeClass("chosen-default")
 
-    @selected_item.find("span").text(text)
+    html = @useTemplate text
+    @selected_item.find("span").html(html)
 
   result_deselect: (pos) ->
     result_data = @results_data[pos]
