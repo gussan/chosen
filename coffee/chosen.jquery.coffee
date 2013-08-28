@@ -360,8 +360,8 @@ class Chosen extends AbstractChosen
       this.search_field_scale()
 
   single_set_selected_text: (text=@default_text) ->
-     html = @useTemplate item
-     @selected_item.find("span").first().html html
+    html = @useTemplate item
+    @selected_item.find("span").first().html html
     if text is @default_text
       @selected_item.addClass("chosen-default")
     else
