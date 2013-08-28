@@ -1,12 +1,7 @@
-###
-Chosen source: generate output using 'cake build'
-Copyright (c) 2011 by Harvest
-###
-root = this
-
 class AbstractChosen
 
   constructor: (@form_field, @options={}) ->
+    return unless AbstractChosen.browser_is_supported()
     @is_multiple = @form_field.multiple
     this.set_default_text()
     this.set_default_values()
@@ -15,8 +10,6 @@ class AbstractChosen
 
     this.set_up_html()
     this.register_observers()
-
-    this.finish_setup()
 
   set_default_values: ->
     @click_test_action = (evt) => this.test_active_click(evt)
@@ -30,21 +23,23 @@ class AbstractChosen
     @disable_search_threshold = @options.disable_search_threshold || 0
     @disable_search = @options.disable_search || false
     @enable_split_word_search = if @options.enable_split_word_search? then @options.enable_split_word_search else true
+    @group_search = if @options.group_search? then @options.group_search else true
     @search_contains = @options.search_contains || false
-    @choices = 0
-    @single_backstroke_delete = @options.single_backstroke_delete || false
+    @single_backstroke_delete = if @options.single_backstroke_delete? then @options.single_backstroke_delete else true
     @max_selected_options = @options.max_selected_options || Infinity
     @inherit_select_classes = @options.inherit_select_classes || false
+    @display_selected_options = if @options.display_selected_options? then @options.display_selected_options else true
+    @display_disabled_options = if @options.display_disabled_options? then @options.display_disabled_options else true
 
   set_default_text: ->
     if @form_field.getAttribute("data-placeholder")
       @default_text = @form_field.getAttribute("data-placeholder")
     else if @is_multiple
-      @default_text = @options.placeholder_text_multiple || @options.placeholder_text || "Select Some Options"
+      @default_text = @options.placeholder_text_multiple || @options.placeholder_text || AbstractChosen.default_multiple_text
     else
-      @default_text = @options.placeholder_text_single || @options.placeholder_text || "Select an Option"
+      @default_text = @options.placeholder_text_single || @options.placeholder_text || AbstractChosen.default_single_text
 
-    @results_none_found = @form_field.getAttribute("data-no_results_text") || @options.no_results_text || "No results match"
+    @results_none_found = @form_field.getAttribute("data-no_results_text") || @options.no_results_text || AbstractChosen.default_no_result_text
 
   mouse_enter: -> @mouse_on_container = true
   mouse_leave: -> @mouse_on_container = false
@@ -54,27 +49,53 @@ class AbstractChosen
       setTimeout (=> this.container_mousedown()), 50 unless @active_field
     else
       @activate_field() unless @active_field
-  
+
   input_blur: (evt) ->
     if not @mouse_on_container
       @active_field = false
       setTimeout (=> this.blur_test()), 100
 
+  results_option_build: (options) ->
+    content = ''
+    for data in @results_data
+      if data.group
+        content += this.result_add_group data
+      else
+        content += this.result_add_option data
+
+      # this select logic pins on an awkward flag
+      # we can make it better
+      if options?.first
+        if data.selected and @is_multiple
+          this.choice_build data
+        else if data.selected and not @is_multiple
+          html = @useTemplate data
+          @selected_item.removeClass("chosen-default").find("span").html html
+          this.single_set_selected_text(data.text)
+
+    content
+
   result_add_option: (option) ->
-    if not option.disabled
-      option.dom_id = @container_id + "_o_" + option.array_index
+    return '' unless option.search_match
+    return '' unless this.include_option_in_results(option)
 
-      classes = if option.selected and @is_multiple then [] else ["active-result"]
-      classes.push "result-selected" if option.selected
-      classes.push "group-option" if option.group_array_index?
-      classes.push option.classes if option.classes != ""
+    classes = []
+    classes.push "active-result" if !option.disabled and !(option.selected and @is_multiple)
+    classes.push "disabled-result" if option.disabled and !(option.selected and @is_multiple)
+    classes.push "result-selected" if option.selected
+    classes.push "group-option" if option.group_array_index?
+    classes.push option.classes if option.classes != ""
 
-      style = if option.style.cssText != "" then " style=\"#{option.style}\"" else ""
-      html = @useTemplate option
-      
-      '<li id="' + option.dom_id + '" class="' + classes.join(' ') + '"'+style+'>' + html + '</li>'
-    else
-      ""
+    style = if option.style.cssText != "" then " style=\"#{option.style}\"" else ""
+    html = @useTemplate option
+
+    """<li class="#{classes.join(' ')}"#{style} data-option-array-index="#{option.array_index}">#{html}</li>"""
+
+  result_add_group: (group) ->
+    return '' unless group.search_match || group.group_match
+    return '' unless group.active_options > 0
+
+    """<li class="group-result">#{group.search_text}</li>"""
 
   results_update_field: ->
     this.set_default_text()
@@ -82,6 +103,7 @@ class AbstractChosen
     this.result_clear_highlight()
     @result_single_selected = null
     this.results_build()
+    this.winnow_results() if @results_showing
 
   results_toggle: ->
     if @results_showing
@@ -95,13 +117,90 @@ class AbstractChosen
     else
       this.results_show()
 
+  winnow_results: ->
+    this.no_results_clear()
+
+    results = 0
+
+    searchText = this.get_search_text()
+    escapedSearchText = searchText.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&")
+    regexAnchor = if @search_contains then "" else "^"
+    regex = new RegExp(regexAnchor + escapedSearchText, 'i')
+    zregex = new RegExp(escapedSearchText, 'i')
+
+    for option in @results_data
+
+      option.search_match = false
+      results_group = null
+
+      if this.include_option_in_results(option)
+
+        if option.group
+          option.group_match = false
+          option.active_options = 0
+
+        if option.group_array_index? and @results_data[option.group_array_index]
+          results_group = @results_data[option.group_array_index]
+          results += 1 if results_group.active_options is 0 and results_group.search_match
+          results_group.active_options += 1
+
+        unless option.group and not @group_search
+
+          option.search_text = if option.group then option.label else option.html
+          option.search_match = this.search_string_match(option.search_text, regex)
+          results += 1 if option.search_match and not option.group
+
+          if option.search_match
+            if searchText.length
+              startpos = option.search_text.search zregex
+              text = option.search_text.substr(0, startpos + searchText.length) + '</em>' + option.search_text.substr(startpos + searchText.length)
+              option.search_text = text.substr(0, startpos) + '<em>' + text.substr(startpos)
+
+            results_group.group_match = true if results_group?
+
+          else if option.group_array_index? and @results_data[option.group_array_index].search_match
+            option.search_match = true
+
+    this.result_clear_highlight()
+
+    if results < 1 and searchText.length
+      this.update_results_content ""
+      this.no_results searchText
+    else
+      this.update_results_content this.results_option_build()
+      this.winnow_results_set_highlight()
+
+  search_string_match: (search_string, regex) ->
+    if regex.test search_string
+      return true
+    else if @enable_split_word_search and (search_string.indexOf(" ") >= 0 or search_string.indexOf("[") == 0)
+      #TODO: replace this substitution of /\[\]/ with a list of characters to skip.
+      parts = search_string.replace(/\[|\]/g, "").split(" ")
+      if parts.length
+        for part in parts
+          if regex.test part
+            return true
+
+  choices_count: ->
+    return @selected_option_count if @selected_option_count?
+
+    @selected_option_count = 0
+    for option in @form_field.options
+      @selected_option_count += 1 if option.selected
+
+    return @selected_option_count
+
+  choices_click: (evt) ->
+    evt.preventDefault()
+    this.results_show() unless @results_showing or @is_disabled
+
   keyup_checker: (evt) ->
     stroke = evt.which ? evt.keyCode
     this.search_field_scale()
 
     switch stroke
       when 8
-        if @is_multiple and @backstroke_length < 1 and @choices > 0
+        if @is_multiple and @backstroke_length < 1 and this.choices_count() > 0
           this.keydown_backstroke()
         else if not @pending_backstroke
           this.result_clear_highlight()
@@ -116,20 +215,33 @@ class AbstractChosen
         # don't do anything on these keys
       else this.results_search()
 
-  generate_field_id: ->
-    new_id = this.generate_random_id()
-    @form_field.id = new_id
-    new_id
-  
-  generate_random_char: ->
-    chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    rand = Math.floor(Math.random() * chars.length)
-    newchar = chars.substring rand, rand+1
-
   useTemplate: (item, text=false) ->
     if this.options.template
       this.options.template(text or item.text, item.value, item.template_data)
     else
       text or item.text
 
-root.AbstractChosen = AbstractChosen
+  container_width: ->
+    return if @options.width? then @options.width else "#{@form_field.offsetWidth}px"
+
+  include_option_in_results: (option) ->
+    return false if @is_multiple and (not @display_selected_options and option.selected)
+    return false if not @display_disabled_options and option.disabled
+    return false if option.empty
+
+    return true
+
+  # class methods and variables ============================================================
+
+  @browser_is_supported: ->
+    if window.navigator.appName == "Microsoft Internet Explorer"
+      return document.documentMode >= 8
+    if /iP(od|hone)/i.test(window.navigator.userAgent)
+      return false
+    if /Android/i.test(window.navigator.userAgent)
+      return false if /Mobile/i.test(window.navigator.userAgent)
+    return true
+
+  @default_multiple_text: "Select Some Options"
+  @default_single_text: "Select an Option"
+  @default_no_result_text: "No results match"
