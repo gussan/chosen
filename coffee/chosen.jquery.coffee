@@ -364,7 +364,7 @@ class Chosen extends AbstractChosen
       this.single_deselect_control_build()
       @selected_item.removeClass("chosen-default")
 
-    html = @useTemplate options, text
+    html = @useTemplate text
     @selected_item.find("span").html(html)
 
   result_deselect: (pos) ->
