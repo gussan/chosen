@@ -347,6 +347,7 @@ class Chosen extends AbstractChosen
       if @is_multiple
         this.choice_build item
       else
+        this.single_set_selected_text(item.text)
 
       this.results_hide() unless (evt.metaKey or evt.ctrlKey) and @is_multiple
 
