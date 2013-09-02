@@ -68,8 +68,6 @@ class AbstractChosen
         if data.selected and @is_multiple
           this.choice_build data
         else if data.selected and not @is_multiple
-          html = @useTemplate data
-          @selected_item.removeClass("chosen-default").find("span").html html
           this.single_set_selected_text(data.text)
 
     content
