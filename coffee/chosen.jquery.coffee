@@ -347,7 +347,7 @@ class Chosen extends AbstractChosen
       if @is_multiple
         this.choice_build item
       else
-        this.single_set_selected_text(item.text)
+        this.single_set_selected_text(item.text, item)
 
       this.results_hide() unless (evt.metaKey or evt.ctrlKey) and @is_multiple
 
@@ -357,14 +357,14 @@ class Chosen extends AbstractChosen
       @current_selectedIndex = @form_field.selectedIndex
       this.search_field_scale()
 
-  single_set_selected_text: (text=@default_text) ->
+  single_set_selected_text: (text=@default_text, options = null) ->
     if text is @default_text
       @selected_item.addClass("chosen-default")
     else
       this.single_deselect_control_build()
       @selected_item.removeClass("chosen-default")
 
-    html = @useTemplate @selected_item, text
+    html = @useTemplate options, text
     @selected_item.find("span").html(html)
 
   result_deselect: (pos) ->
