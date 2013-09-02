@@ -18,7 +18,6 @@ class AbstractChosen
     @mouse_on_container = false
     @results_showing = false
     @result_highlighted = null
-    @result_single_selected = null
     @allow_single_deselect = if @options.allow_single_deselect? and @form_field.options[0]? and @form_field.options[0].text is "" then @options.allow_single_deselect else false
     @disable_search_threshold = @options.disable_search_threshold || 0
     @disable_search = @options.disable_search || false
@@ -86,24 +85,35 @@ class AbstractChosen
     classes.push "group-option" if option.group_array_index?
     classes.push option.classes if option.classes != ""
 
-    style = if option.style.cssText != "" then " style=\"#{option.style}\"" else ""
     html = @useTemplate option
+    option_el = document.createElement("li")
+    option_el.className = classes.join(" ")
+    option_el.style.cssText = option.style
+    option_el.setAttribute("data-option-array-index", option.array_index)
+    option_el.innerHTML = html
 
-    """<li class="#{classes.join(' ')}"#{style} data-option-array-index="#{option.array_index}">#{html}</li>"""
+    this.outerHTML(option_el)
 
   result_add_group: (group) ->
     return '' unless group.search_match || group.group_match
     return '' unless group.active_options > 0
 
-    """<li class="group-result">#{group.search_text}</li>"""
+    group_el = document.createElement("li")
+    group_el.className = "group-result"
+    group_el.innerHTML = group.search_text
+
+    this.outerHTML(group_el)
 
   results_update_field: ->
     this.set_default_text()
     this.results_reset_cleanup() if not @is_multiple
     this.result_clear_highlight()
-    @result_single_selected = null
     this.results_build()
     this.winnow_results() if @results_showing
+
+  reset_single_select_options: () ->
+    for result in @results_data
+      result.selected = false if result.selected
 
   results_toggle: ->
     if @results_showing
@@ -230,6 +240,23 @@ class AbstractChosen
     return false if option.empty
 
     return true
+
+  search_results_touchstart: (evt) ->
+    @touch_started = true
+    this.search_results_mouseover(evt)
+
+  search_results_touchmove: (evt) ->
+    @touch_started = false
+    this.search_results_mouseout(evt)
+
+  search_results_touchend: (evt) ->
+    this.search_results_mouseup(evt) if @touch_started
+
+  outerHTML: (element) ->
+    return element.outerHTML if element.outerHTML
+    tmp = document.createElement("div")
+    tmp.appendChild(element)
+    tmp.innerHTML
 
   # class methods and variables ============================================================
 

@@ -76,6 +76,10 @@ class Chosen extends AbstractChosen
     @search_results.bind 'mouseout.chosen', (evt) => this.search_results_mouseout(evt); return
     @search_results.bind 'mousewheel.chosen DOMMouseScroll.chosen', (evt) => this.search_results_mousewheel(evt); return
 
+    @search_results.bind 'touchstart.chosen', (evt) => this.search_results_touchstart(evt); return
+    @search_results.bind 'touchmove.chosen', (evt) => this.search_results_touchmove(evt); return
+    @search_results.bind 'touchend.chosen', (evt) => this.search_results_touchend(evt); return
+
     @form_field_jq.bind "chosen:updated.chosen", (evt) => this.results_update_field(evt); return
     @form_field_jq.bind "chosen:activate.chosen", (evt) => this.activate_field(evt); return
     @form_field_jq.bind "chosen:open.chosen", (evt) => this.container_mousedown(evt); return
@@ -307,8 +311,8 @@ class Chosen extends AbstractChosen
       this.search_field_scale()
 
   results_reset: ->
+    this.reset_single_select_options()
     @form_field.options[0].selected = true
-    @selected_option_count = null
     this.single_set_selected_text()
     this.show_search_field_default()
     this.results_reset_cleanup()
@@ -332,14 +336,7 @@ class Chosen extends AbstractChosen
       if @is_multiple
         high.removeClass("active-result")
       else
-        if @result_single_selected
-          @result_single_selected.removeClass("result-selected")
-          selected_index = @result_single_selected[0].getAttribute('data-option-array-index')
-          @results_data[selected_index].selected = false
-
-        @result_single_selected = high
-
-      high.addClass "result-selected"
+        this.reset_single_select_options()
 
       item = @results_data[ high[0].getAttribute("data-option-array-index") ]
       item.selected = true
